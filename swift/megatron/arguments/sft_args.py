@@ -1,6 +1,7 @@
 # Copyright (c) ModelScope Contributors. All rights reserved.
 import os
 from dataclasses import dataclass
+from typing import Optional
 
 import json
 
@@ -14,6 +15,19 @@ logger = get_logger()
 class MegatronSftArguments(MegatronBaseArguments):
     add_version: bool = True
     load_args: bool = False
+    # FieldTuneMixed: use same-dir mixed_dataset.FieldTuneMixedDataset (multi-dir blend + transforms).
+    # When True, --dataset must be a directory (data_dir); data is loaded via FieldTuneMixedDataset.build_dataset().
+    use_field_tune_mixed_dataset: bool = False
+    # Path to weight_config JSON or JSON string: {"subdir_name": weight, ...} for interleave sampling.
+    weight_config: Optional[str] = None
+    # FieldTuneMixed optional: data_format, xiaoai_field, sharegpt, iot_seq (see mixed_dataset.FieldTuneMixedDataset).
+    data_format: Optional[str] = None
+    xiaoai_multi_task: bool = False
+    dialog_construct_method: Optional[str] = None
+    dialog_loss_calc_part: Optional[str] = None
+    dialog_sample_strategy: Optional[str] = None
+    share_gpt_loss_calc_part: Optional[str] = None
+
 
     def _init_save(self):
         init_process_group(backend=self.ddp_backend, timeout=self.ddp_timeout)
