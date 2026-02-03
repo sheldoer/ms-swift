@@ -25,13 +25,17 @@ logger = get_logger()
 
 # Wrapper so that FieldTuneMixed-built dataset yields dicts compatible with template.data_collator
 # (input_ids, labels, position_ids). No LazyLLMDataset / template.encode needed.
+# When padding_free/packing is used, we must return effective-length only (trim left padding)
+# so that logits and labels shapes match (e.g. 247 vs 247, not 247 vs 9000).
 class _PreTokenizedSwiftDataset(torch.utils.data.Dataset):
     """Wraps a HF/Interleave dataset from FieldTuneMixedDataset.build_dataset() so each
-    __getitem__ returns {input_ids, labels, position_ids} for Swift Megatron data_collator.
+    __getitem__ returns {input_ids, labels, position_ids, length} for Swift Megatron data_collator.
+    If pad_token_id is set, left padding is trimmed so packing/padding_free gets matching lengths.
     """
 
-    def __init__(self, hf_dataset: Any) -> None:
+    def __init__(self, hf_dataset: Any, pad_token_id: Optional[int] = None) -> None:
         self._ds = hf_dataset
+        self._pad_id = pad_token_id
 
     def __len__(self) -> int:
         return len(self._ds)
@@ -49,6 +53,7 @@ class _PreTokenizedSwiftDataset(torch.utils.data.Dataset):
             'input_ids': input_ids,
             'labels': labels,
             'position_ids': list(range(n)),
+            'length': n,
         }
 
 
@@ -68,7 +73,7 @@ def _build_field_tune_mixed_datasets(args: MegatronSftArguments, template) -> tu
     tokenizer = template.processor
     if tokenizer is None:
         raise ValueError('FieldTuneMixed requires template.processor (HF tokenizer).')
-    max_length = getattr(args, 'max_length', None) or getattr(args, 'seq_length', 2048)
+    max_length = getattr(args, 'max_length', None) or getattr(args, 'seq_length', 1024)
     # Align with FieldTuneMixedDataset in same dir (mixed_dataset.py); pass optional kwargs from args.
     mixed = FieldTuneMixedDataset(
         logger=logger,
@@ -82,8 +87,8 @@ def _build_field_tune_mixed_datasets(args: MegatronSftArguments, template) -> tu
         is_train=True,
         model_type='qwen3',
         stopping_strategy='all_exhausted',
-        concat_samples=False,
-        mix_at_eval=True,
+        concat_samples=args.concat_samples,
+        mix_at_eval=False,
         use_shuffle=args.dataset_shuffle,
         do_not_tokenize=False,
         data_num_proc=getattr(args, 'dataset_num_proc', 4),
@@ -96,8 +101,8 @@ def _build_field_tune_mixed_datasets(args: MegatronSftArguments, template) -> tu
         share_gpt_loss_calc_part=getattr(args, 'share_gpt_loss_calc_part', None) or 'assistant',
     )
     interleaved = mixed.build_dataset()
-    # interleaved may be InterleaveDataset or HfDataset; ensure we have __len__ and __getitem__
-    base_ds = _PreTokenizedSwiftDataset(interleaved)
+    pad_token_id = getattr(tokenizer, 'pad_token_id', None) or getattr(tokenizer, 'eos_token_id', None)
+    base_ds = _PreTokenizedSwiftDataset(interleaved, pad_token_id=pad_token_id)
     val_dataset = None
     if args.split_dataset_ratio and args.split_dataset_ratio > 0 and len(base_ds) > 0:
         from torch.utils.data import Subset

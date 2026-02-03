@@ -139,6 +139,9 @@ class MixedDataset:
                 WeightDatasetConfig(dataset_name="default", data_dir=self.data_dir, transform_type="default")
             )
         self.tokenizer = tokenizer
+        # Causal LM 训练使用左填充，pad_label_ids 依赖此设置
+        if getattr(self.tokenizer, 'padding_side', None) != 'left':
+            self.tokenizer.padding_side = 'left'
         self.max_length = max_length
         self.streaming = streaming
         self.default_extract_column = default_extract_column

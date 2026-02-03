@@ -21,8 +21,8 @@ class MegatronSftArguments(MegatronBaseArguments):
     # Path to weight_config JSON or JSON string: {"subdir_name": weight, ...} for interleave sampling.
     weight_config: Optional[str] = None
     # FieldTuneMixed optional: data_format, xiaoai_field, sharegpt, iot_seq (see mixed_dataset.FieldTuneMixedDataset).
-    data_format: Optional[str] = None
-    xiaoai_multi_task: bool = False
+    dataset_type: Optional[str] = "field_tune"
+    concat_samples: Optional[bool] = True
     dialog_construct_method: Optional[str] = None
     dialog_loss_calc_part: Optional[str] = None
     dialog_sample_strategy: Optional[str] = None
