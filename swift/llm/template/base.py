@@ -1136,7 +1136,7 @@ class Template(ProcessorMixin):
 
         self._get_std_messages(inputs.messages)
         n_round = len(inputs.messages) // 2
-        if n_round > 1 and not self.template_meta.support_multi_round:
+        if n_round > 1 and self.use_chat_template and not self.template_meta.support_multi_round:
             logger.warning_once(
                 'The template does not support multi-round chat. Only use the last round of the conversation.')
             # TODO: Multimodal models may encounter image mismatch issues.
@@ -1184,7 +1184,7 @@ class Template(ProcessorMixin):
             if i < n_round - 1:
                 # Not the last round.
                 context_list.append('{{RESPONSE}}')
-                if inputs.messages[2 * (i + 1)]['role'] != 'tool':
+                if inputs.messages[2 * (i + 1)]['role'] != 'tool' and template_meta.chat_sep is not None:
                     extra_context_list = template_meta.chat_sep
                     extra_context_type = ContextType.OTHER
             elif response is not None:
