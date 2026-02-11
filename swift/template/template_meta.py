@@ -58,7 +58,7 @@ class TemplateMeta:
             self.template_type,
             prefix=[],
             prompt=['{{QUERY}}'],
-            chat_sep=None,
+            chat_sep=[],
             template_cls=self.template_cls,
             auto_add_bos=True,
             stop_words=self.stop_words,
