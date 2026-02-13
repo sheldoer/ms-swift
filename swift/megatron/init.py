@@ -843,8 +843,18 @@ def _patch_megatron_swanlab():
             writer = wandb
         elif args.report_to == 'swanlab':
             import swanlab
+            # 多机或无网时仅写本地，不连 api.swanlab.cn；有网后可用 swanlab sync 同步
+            # 同时根据 WORLD_SIZE>1 判断，避免部分 rank 未继承 WANDB_MODE 仍尝试连云端
+            _swanlab_offline = os.environ.get('WANDB_MODE') == 'offline'
+            _world_size = int(os.environ.get('WORLD_SIZE', '0') or '0')
+            swanlab_mode = 'local' if (_swanlab_offline or _world_size > 1) else 'cloud'
             swanlab.init(
-                logdir=save_dir, experiment_name=args.wandb_exp_name, project=args.wandb_project, config=config)
+                logdir=save_dir,
+                experiment_name=args.wandb_exp_name,
+                project=args.wandb_project,
+                config=config,
+                mode=swanlab_mode,
+            )
             writer = swanlab
 
         global_vars._GLOBAL_WANDB_WRITER = writer
